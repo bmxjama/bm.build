@@ -1,0 +1,9 @@
+#!/bin/bash
+set -e
+if [ -z "$PUSH_HOOKS_ENABLED" ];
+then
+    exit 0;
+fi
+
+TOPLEVEL=`git rev-parse --show-toplevel`
+ant -f $TOPLEVEL/build.xml qc

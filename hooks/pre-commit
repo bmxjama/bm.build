@@ -1,0 +1,28 @@
+#!/bin/bash
+set -e
+TOPLEVEL=`git rev-parse --show-toplevel`
+
+FILES=$(git diff --name-only --cached HEAD)
+EXCLUDED_FILES=("$TOPLEVEL/app/AppKernel.php" "$TOPLEVEL/app/SymfonyRequirements.php" "$TOPLEVEL/app/check.php")
+for FILE in $FILES; do
+    if [ -f "$TOPLEVEL/$FILE" ];
+    then
+        echo "processing $TOPLEVEL/$FILE..."
+        FILENAME=$(basename $FILE)
+        EXT=${FILENAME#*.}
+        set +e
+        REAL_PHP=$(echo "${EXCLUDED_FILES[@]:0}" | grep -o $FILE)
+        set -e
+        if [[ -z $REAL_PHP ]] && [ "$EXT" = "php" ];
+        then
+            set +e
+            $TOPLEVEL/vendor/bin/phpcbf --standard=psr2 -vv --extensions=php $TOPLEVEL/$FILE
+            $TOPLEVEL/vendor/bin/php-cs-fixer fix --using-cache=false --rules=@Symfony,-concat_without_spaces -v $TOPLEVEL/$FILE
+            set -e
+            php -l $TOPLEVEL/$FILE
+            $TOPLEVEL/vendor/bin/phpmd $TOPLEVEL/$FILE text codesize
+            $TOPLEVEL/vendor/bin/phpcs --standard=psr2 $TOPLEVEL/$FILE
+        fi
+        git add "$TOPLEVEL/$FILE"
+    fi
+done;
